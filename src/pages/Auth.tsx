@@ -6,17 +6,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Church } from "lucide-react";
+import { Church, ShieldCheck, Users } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+
+  // Login state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [signupEmail, setSignupEmail] = useState("");
-  const [signupPassword, setSignupPassword] = useState("");
-  const [signupName, setSignupName] = useState("");
+
+  // Admin signup state
+  const [adminName, setAdminName] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminConfirmPassword, setAdminConfirmPassword] = useState("");
+
+  // Member signup state
+  const [memberName, setMemberName] = useState("");
+  const [memberEmail, setMemberEmail] = useState("");
+  const [memberPhone, setMemberPhone] = useState("");
+  const [memberBirthDate, setMemberBirthDate] = useState("");
+  const [memberReason, setMemberReason] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,25 +47,79 @@ const Auth = () => {
     setLoading(false);
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleAdminSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (adminPassword !== adminConfirmPassword) {
+      toast.error("Las contraseñas no coinciden.");
+      return;
+    }
+    if (adminPassword.length < 6) {
+      toast.error("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.signUp({
-      email: signupEmail,
-      password: signupPassword,
-      options: { data: { full_name: signupName } },
+      email: adminEmail,
+      password: adminPassword,
+      options: { data: { full_name: adminName } },
     });
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Revisa tu correo para confirmar tu cuenta.");
+      toast.success("Revisa tu correo para confirmar tu cuenta de administrador.");
     }
+    setLoading(false);
+  };
+
+  const handleMemberSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!memberName.trim() || !memberEmail.trim()) {
+      toast.error("Nombre y correo son obligatorios.");
+      return;
+    }
+    setLoading(true);
+
+    // Insert into members table (public, no auth needed)
+    const { data: memberData, error: memberError } = await supabase
+      .from("members")
+      .insert({
+        full_name: memberName.trim(),
+        email: memberEmail.trim(),
+        phone: memberPhone.trim() || null,
+        birth_date: memberBirthDate || null,
+        membership_reason: memberReason.trim() || null,
+      })
+      .select("id")
+      .single();
+
+    if (memberError) {
+      toast.error("Error al registrar: " + memberError.message);
+      setLoading(false);
+      return;
+    }
+
+    // Create alert for admin notification
+    if (memberData) {
+      await supabase.from("alerts").insert({
+        member_id: memberData.id,
+        alert_type: "nuevo_miembro",
+        description: `Nuevo miembro registrado: ${memberName.trim()}`,
+        status: "pendiente",
+      });
+    }
+
+    toast.success("¡Registro exitoso! El administrador revisará tu solicitud.");
+    setMemberName("");
+    setMemberEmail("");
+    setMemberPhone("");
+    setMemberBirthDate("");
+    setMemberReason("");
     setLoading(false);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md animate-fade-in">
+      <Card className="w-full max-w-lg animate-fade-in">
         <CardHeader className="text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary">
             <Church className="h-7 w-7 text-primary-foreground" />
@@ -62,10 +129,19 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
-              <TabsTrigger value="signup">Registrarse</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="login">Ingresar</TabsTrigger>
+              <TabsTrigger value="admin">
+                <ShieldCheck className="h-4 w-4 mr-1" />
+                Pastor
+              </TabsTrigger>
+              <TabsTrigger value="member">
+                <Users className="h-4 w-4 mr-1" />
+                Miembro
+              </TabsTrigger>
             </TabsList>
+
+            {/* Login */}
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4 mt-4">
                 <div className="space-y-2">
@@ -81,22 +157,59 @@ const Auth = () => {
                 </Button>
               </form>
             </TabsContent>
-            <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4 mt-4">
+
+            {/* Admin / Pastor signup */}
+            <TabsContent value="admin">
+              <form onSubmit={handleAdminSignup} className="space-y-4 mt-4">
+                <p className="text-sm text-muted-foreground">Registro para pastores y administradores del sistema.</p>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-name">Nombre completo</Label>
-                  <Input id="signup-name" value={signupName} onChange={(e) => setSignupName(e.target.value)} required />
+                  <Label htmlFor="admin-name">Nombre completo</Label>
+                  <Input id="admin-name" value={adminName} onChange={(e) => setAdminName(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Correo electrónico</Label>
-                  <Input id="signup-email" type="email" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} required />
+                  <Label htmlFor="admin-email">Correo electrónico</Label>
+                  <Input id="admin-email" type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Contraseña</Label>
-                  <Input id="signup-password" type="password" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} required minLength={6} />
+                  <Label htmlFor="admin-password">Contraseña</Label>
+                  <Input id="admin-password" type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="admin-confirm">Confirmar contraseña</Label>
+                  <Input id="admin-confirm" type="password" value={adminConfirmPassword} onChange={(e) => setAdminConfirmPassword(e.target.value)} required minLength={6} />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Registrando..." : "Crear Cuenta"}
+                  {loading ? "Registrando..." : "Crear Cuenta de Pastor"}
+                </Button>
+              </form>
+            </TabsContent>
+
+            {/* Member signup */}
+            <TabsContent value="member">
+              <form onSubmit={handleMemberSignup} className="space-y-4 mt-4">
+                <p className="text-sm text-muted-foreground">Registro para miembros activos de la iglesia.</p>
+                <div className="space-y-2">
+                  <Label htmlFor="member-name">Nombre completo</Label>
+                  <Input id="member-name" value={memberName} onChange={(e) => setMemberName(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="member-email">Correo electrónico</Label>
+                  <Input id="member-email" type="email" value={memberEmail} onChange={(e) => setMemberEmail(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="member-phone">Teléfono</Label>
+                  <Input id="member-phone" type="tel" value={memberPhone} onChange={(e) => setMemberPhone(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="member-birth">Fecha de nacimiento</Label>
+                  <Input id="member-birth" type="date" value={memberBirthDate} onChange={(e) => setMemberBirthDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="member-reason">Motivo de membresía</Label>
+                  <Textarea id="member-reason" placeholder="¿Por qué deseas ser parte de nuestra comunidad?" value={memberReason} onChange={(e) => setMemberReason(e.target.value)} rows={3} />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Registrando..." : "Registrarme como Miembro"}
                 </Button>
               </form>
             </TabsContent>

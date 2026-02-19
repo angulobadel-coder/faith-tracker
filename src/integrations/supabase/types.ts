@@ -90,31 +90,37 @@ export type Database = {
       members: {
         Row: {
           active: boolean
+          birth_date: string | null
           created_at: string
           email: string | null
           fingerprint_id: string
           full_name: string
           id: string
+          membership_reason: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
           active?: boolean
+          birth_date?: string | null
           created_at?: string
           email?: string | null
-          fingerprint_id: string
+          fingerprint_id?: string
           full_name: string
           id?: string
+          membership_reason?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
           active?: boolean
+          birth_date?: string | null
           created_at?: string
           email?: string | null
           fingerprint_id?: string
           full_name?: string
           id?: string
+          membership_reason?: string | null
           phone?: string | null
           updated_at?: string
         }
