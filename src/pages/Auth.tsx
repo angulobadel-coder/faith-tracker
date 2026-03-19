@@ -231,6 +231,14 @@ const Auth = () => {
                   <Label htmlFor="member-reason">Motivo de membresía</Label>
                   <Textarea id="member-reason" placeholder="¿Por qué deseas ser parte de nuestra comunidad?" value={memberReason} onChange={(e) => setMemberReason(e.target.value)} rows={3} />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="member-password">Contraseña</Label>
+                  <Input id="member-password" type="password" value={memberPassword} onChange={(e) => setMemberPassword(e.target.value)} required minLength={6} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="member-confirm">Confirmar contraseña</Label>
+                  <Input id="member-confirm" type="password" value={memberConfirmPassword} onChange={(e) => setMemberConfirmPassword(e.target.value)} required minLength={6} />
+                </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Registrando..." : "Registrarme como Miembro"}
                 </Button>

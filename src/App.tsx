@@ -11,20 +11,31 @@ import RegisterAttendance from "./pages/RegisterAttendance";
 import Members from "./pages/Members";
 import Reports from "./pages/Reports";
 import Alerts from "./pages/Alerts";
+import MemberDashboard from "./pages/MemberDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Cargando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
+  if (role === "member") return <Navigate to="/mi-panel" replace />;
   return <AppLayout>{children}</AppLayout>;
 }
 
-function AuthRoute() {
-  const { user, loading } = useAuth();
+function MemberRoute() {
+  const { user, role, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Cargando...</div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (role !== "member") return <Navigate to="/" replace />;
+  return <MemberDashboard />;
+}
+
+function AuthRoute() {
+  const { user, role, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Cargando...</div>;
+  if (user && role === "member") return <Navigate to="/mi-panel" replace />;
   if (user) return <Navigate to="/" replace />;
   return <Auth />;
 }
@@ -37,6 +48,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<AuthRoute />} />
+          <Route path="/mi-panel" element={<MemberRoute />} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/registrar" element={<ProtectedRoute><RegisterAttendance /></ProtectedRoute>} />
           <Route path="/miembros" element={<ProtectedRoute><Members /></ProtectedRoute>} />
