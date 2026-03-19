@@ -30,6 +30,8 @@ const Auth = () => {
   const [memberPhone, setMemberPhone] = useState("");
   const [memberBirthDate, setMemberBirthDate] = useState("");
   const [memberReason, setMemberReason] = useState("");
+  const [memberPassword, setMemberPassword] = useState("");
+  const [memberConfirmPassword, setMemberConfirmPassword] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
