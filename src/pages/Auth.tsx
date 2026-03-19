@@ -30,6 +30,8 @@ const Auth = () => {
   const [memberPhone, setMemberPhone] = useState("");
   const [memberBirthDate, setMemberBirthDate] = useState("");
   const [memberReason, setMemberReason] = useState("");
+  const [memberPassword, setMemberPassword] = useState("");
+  const [memberConfirmPassword, setMemberConfirmPassword] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,9 +79,35 @@ const Auth = () => {
       toast.error("Nombre y correo son obligatorios.");
       return;
     }
+    if (!memberPassword || memberPassword.length < 6) {
+      toast.error("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+    if (memberPassword !== memberConfirmPassword) {
+      toast.error("Las contraseñas no coinciden.");
+      return;
+    }
     setLoading(true);
 
-    // Insert into members table (public, no auth needed)
+    // Create auth account with member role
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: memberEmail.trim(),
+      password: memberPassword,
+      options: {
+        data: {
+          full_name: memberName.trim(),
+          role: "member",
+        },
+      },
+    });
+
+    if (authError) {
+      toast.error("Error al crear cuenta: " + authError.message);
+      setLoading(false);
+      return;
+    }
+
+    // Insert into members table
     const { data: memberData, error: memberError } = await supabase
       .from("members")
       .insert({
@@ -92,14 +120,7 @@ const Auth = () => {
       .select("id")
       .single();
 
-    if (memberError) {
-      toast.error("Error al registrar: " + memberError.message);
-      setLoading(false);
-      return;
-    }
-
-    // Create alert for admin notification
-    if (memberData) {
+    if (!memberError && memberData) {
       await supabase.from("alerts").insert({
         member_id: memberData.id,
         alert_type: "nuevo_miembro",
@@ -108,12 +129,14 @@ const Auth = () => {
       });
     }
 
-    toast.success("¡Registro exitoso! El administrador revisará tu solicitud.");
+    toast.success("¡Cuenta creada! Revisa tu correo para confirmar.");
     setMemberName("");
     setMemberEmail("");
     setMemberPhone("");
     setMemberBirthDate("");
     setMemberReason("");
+    setMemberPassword("");
+    setMemberConfirmPassword("");
     setLoading(false);
   };
 
@@ -207,6 +230,14 @@ const Auth = () => {
                 <div className="space-y-2">
                   <Label htmlFor="member-reason">Motivo de membresía</Label>
                   <Textarea id="member-reason" placeholder="¿Por qué deseas ser parte de nuestra comunidad?" value={memberReason} onChange={(e) => setMemberReason(e.target.value)} rows={3} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="member-password">Contraseña</Label>
+                  <Input id="member-password" type="password" value={memberPassword} onChange={(e) => setMemberPassword(e.target.value)} required minLength={6} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="member-confirm">Confirmar contraseña</Label>
+                  <Input id="member-confirm" type="password" value={memberConfirmPassword} onChange={(e) => setMemberConfirmPassword(e.target.value)} required minLength={6} />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Registrando..." : "Registrarme como Miembro"}
