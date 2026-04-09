@@ -93,7 +93,7 @@ export type Database = {
           birth_date: string | null
           created_at: string
           email: string | null
-          fingerprint_id: string
+          fingerprint_id: string | null
           full_name: string
           id: string
           membership_reason: string | null
@@ -105,7 +105,7 @@ export type Database = {
           birth_date?: string | null
           created_at?: string
           email?: string | null
-          fingerprint_id?: string
+          fingerprint_id?: string | null
           full_name: string
           id?: string
           membership_reason?: string | null
@@ -117,7 +117,7 @@ export type Database = {
           birth_date?: string | null
           created_at?: string
           email?: string | null
-          fingerprint_id?: string
+          fingerprint_id?: string | null
           full_name?: string
           id?: string
           membership_reason?: string | null
