@@ -1,5 +1,5 @@
 import { useLocation } from "react-router-dom";
-import { Church, LayoutDashboard, UserPlus, ClipboardList, AlertTriangle, Users, LogOut } from "lucide-react";
+import { Church, LayoutDashboard, UserPlus, ClipboardList, AlertTriangle, Users, LogOut, Fingerprint } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -21,6 +21,7 @@ const menuItems = [
   { title: "Miembros", url: "/miembros", icon: Users },
   { title: "Reportes", url: "/reportes", icon: UserPlus },
   { title: "Alertas", url: "/alertas", icon: AlertTriangle },
+  { title: "Registro Huellas", url: "/huellas", icon: Fingerprint },
 ];
 
 export function AppSidebar() {

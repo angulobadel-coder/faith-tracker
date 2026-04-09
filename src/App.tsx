@@ -11,6 +11,7 @@ import RegisterAttendance from "./pages/RegisterAttendance";
 import Members from "./pages/Members";
 import Reports from "./pages/Reports";
 import Alerts from "./pages/Alerts";
+import FingerprintEnroll from "./pages/FingerprintEnroll";
 import MemberDashboard from "./pages/MemberDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/miembros" element={<ProtectedRoute><Members /></ProtectedRoute>} />
           <Route path="/reportes" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/alertas" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
+          <Route path="/huellas" element={<ProtectedRoute><FingerprintEnroll /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
