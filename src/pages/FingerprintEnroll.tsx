@@ -20,10 +20,27 @@ const FingerprintEnroll = () => {
   const [ipInput, setIpInput] = useState(() => localStorage.getItem("esp32_ip") || "");
   const [connected, setConnected] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [connectionHint, setConnectionHint] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [enrolling, setEnrolling] = useState(false);
   const [enrollStatus, setEnrollStatus] = useState("");
+
+  const normalizeEsp32Ip = (value: string) =>
+    value.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/\s+/g, "");
+
+  const buildEsp32Url = (ip: string, path: string) => `http://${normalizeEsp32Ip(ip)}${path}`;
+
+  const getConnectivityHint = (ip: string) => {
+    const normalizedIp = normalizeEsp32Ip(ip);
+    const isSecurePage = typeof window !== "undefined" && window.location.protocol === "https:";
+
+    if (isSecurePage) {
+      return `Si ya estás en la misma Wi‑Fi, el navegador probablemente está bloqueando http://${normalizedIp} desde esta página segura. En Chrome agrega exactamente "http://${normalizedIp}" en chrome://flags/#unsafely-treat-insecure-origin-as-secure, reinicia el navegador y aquí escribe solo la IP.`;
+    }
+
+    return `Verifica que el ESP32 responda en http://${normalizedIp}/status y que ambos equipos estén en la misma red Wi‑Fi 2.4 GHz.`;
+  };
 
   const fetchMembers = useCallback(async () => {
     const { data } = await supabase
@@ -39,37 +56,48 @@ const FingerprintEnroll = () => {
   }, [fetchMembers]);
 
   const checkConnection = async (ip: string) => {
+    const normalizedIp = normalizeEsp32Ip(ip);
+    if (!normalizedIp) return;
+
     setChecking(true);
     setConnected(false);
+    setConnectionHint("");
+
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch(`http://${ip}/status`, { signal: controller.signal });
+      const res = await fetch(buildEsp32Url(normalizedIp, "/status"), { signal: controller.signal });
       clearTimeout(timeout);
       if (res.ok) {
         setConnected(true);
-        setEsp32Ip(ip);
-        localStorage.setItem("esp32_ip", ip);
+        setEsp32Ip(normalizedIp);
+        setIpInput(normalizedIp);
+        localStorage.setItem("esp32_ip", normalizedIp);
+        setConnectionHint("");
         toast.success("ESP32 conectado correctamente");
       } else {
-        toast.error("ESP32 respondió con error");
+        setConnectionHint(`El ESP32 respondió, pero /status devolvió un error. Revisa el firmware y confirma que esa IP sea la actual: ${normalizedIp}.`);
+        toast.error("El ESP32 respondió con error en /status");
       }
     } catch {
-      toast.error("No se pudo conectar al ESP32. Verifica la IP y que estés en la misma red.");
+      setConnectionHint(getConnectivityHint(normalizedIp));
+      toast.error("No se pudo conectar al ESP32. Revisa la IP o el bloqueo del navegador.");
     }
     setChecking(false);
   };
 
   const handleSaveIp = () => {
-    if (!ipInput.trim()) return;
-    checkConnection(ipInput.trim());
+    const normalizedIp = normalizeEsp32Ip(ipInput);
+    if (!normalizedIp) return;
+    setIpInput(normalizedIp);
+    checkConnection(normalizedIp);
   };
 
   // Periodically check connection
   useEffect(() => {
     if (!esp32Ip) return;
     const interval = setInterval(() => {
-      fetch(`http://${esp32Ip}/status`, { signal: AbortSignal.timeout(2000) })
+      fetch(buildEsp32Url(esp32Ip, "/status"), { signal: AbortSignal.timeout(2000) })
         .then((r) => setConnected(r.ok))
         .catch(() => setConnected(false));
     }, 10000);
@@ -95,7 +123,7 @@ const FingerprintEnroll = () => {
 
       setEnrollStatus(`Enrollando en slot #${nextSlot}. Coloca el dedo en el sensor...`);
 
-      const res = await fetch(`http://${esp32Ip}/enroll?slot=${nextSlot}`, {
+      const res = await fetch(buildEsp32Url(esp32Ip, `/enroll?slot=${nextSlot}`), {
         method: "POST",
         signal: AbortSignal.timeout(30000),
       });
@@ -177,6 +205,11 @@ const FingerprintEnroll = () => {
             </Button>
           </div>
 
+          <p className="text-xs text-muted-foreground">
+            Aquí escribe solo la IP del ESP32, por ejemplo <span className="font-mono">10.89.158.23</span>.
+            Si configuras Chrome flags, allí sí debes usar <span className="font-mono">http://{normalizeEsp32Ip(ipInput || esp32Ip || "IP_DEL_ESP32")}</span>.
+          </p>
+
           {esp32Ip && (
             <div className={`flex items-center gap-2 p-3 rounded-md border ${
               connected
@@ -196,6 +229,12 @@ const FingerprintEnroll = () => {
                   <Badge variant="outline" className="ml-auto text-destructive border-destructive/30">Offline</Badge>
                 </>
               )}
+            </div>
+          )}
+
+          {connectionHint && (
+            <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-foreground">
+              {connectionHint}
             </div>
           )}
         </CardContent>
