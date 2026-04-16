@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Fingerprint, Wifi, WifiOff, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Fingerprint, CheckCircle, AlertCircle, Loader2, Copy, Cloud } from "lucide-react";
 import { toast } from "sonner";
 
 interface Member {
@@ -15,32 +15,14 @@ interface Member {
   fingerprint_id: string | null;
 }
 
+const ESP32_API_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/esp32-api`;
+
 const FingerprintEnroll = () => {
-  const [esp32Ip, setEsp32Ip] = useState(() => localStorage.getItem("esp32_ip") || "");
-  const [ipInput, setIpInput] = useState(() => localStorage.getItem("esp32_ip") || "");
-  const [connected, setConnected] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [connectionHint, setConnectionHint] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [enrolling, setEnrolling] = useState(false);
   const [enrollStatus, setEnrollStatus] = useState("");
-
-  const normalizeEsp32Ip = (value: string) =>
-    value.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/\s+/g, "");
-
-  const buildEsp32Url = (ip: string, path: string) => `http://${normalizeEsp32Ip(ip)}${path}`;
-
-  const getConnectivityHint = (ip: string) => {
-    const normalizedIp = normalizeEsp32Ip(ip);
-    const isSecurePage = typeof window !== "undefined" && window.location.protocol === "https:";
-
-    if (isSecurePage) {
-      return `Si ya estás en la misma Wi‑Fi, el navegador probablemente está bloqueando http://${normalizedIp} desde esta página segura. En Chrome agrega exactamente "http://${normalizedIp}" en chrome://flags/#unsafely-treat-insecure-origin-as-secure, reinicia el navegador y aquí escribe solo la IP.`;
-    }
-
-    return `Verifica que el ESP32 responda en http://${normalizedIp}/status y que ambos equipos estén en la misma red Wi‑Fi 2.4 GHz.`;
-  };
+  const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
 
   const fetchMembers = useCallback(async () => {
     const { data } = await supabase
@@ -55,115 +37,54 @@ const FingerprintEnroll = () => {
     fetchMembers();
   }, [fetchMembers]);
 
-  const checkConnection = async (ip: string) => {
-    const normalizedIp = normalizeEsp32Ip(ip);
-    if (!normalizedIp) return;
-
-    setChecking(true);
-    setConnected(false);
-    setConnectionHint("");
-
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch(buildEsp32Url(normalizedIp, "/status"), { signal: controller.signal });
-      clearTimeout(timeout);
-      if (res.ok) {
-        setConnected(true);
-        setEsp32Ip(normalizedIp);
-        setIpInput(normalizedIp);
-        localStorage.setItem("esp32_ip", normalizedIp);
-        setConnectionHint("");
-        toast.success("ESP32 conectado correctamente");
-      } else {
-        setConnectionHint(`El ESP32 respondió, pero /status devolvió un error. Revisa el firmware y confirma que esa IP sea la actual: ${normalizedIp}.`);
-        toast.error("El ESP32 respondió con error en /status");
-      }
-    } catch {
-      setConnectionHint(getConnectivityHint(normalizedIp));
-      toast.error("No se pudo conectar al ESP32. Revisa la IP o el bloqueo del navegador.");
-    }
-    setChecking(false);
-  };
-
-  const handleSaveIp = () => {
-    const normalizedIp = normalizeEsp32Ip(ipInput);
-    if (!normalizedIp) return;
-    setIpInput(normalizedIp);
-    checkConnection(normalizedIp);
-  };
-
-  // Periodically check connection
+  // Check API health on mount
   useEffect(() => {
-    if (!esp32Ip) return;
-    const interval = setInterval(() => {
-      fetch(buildEsp32Url(esp32Ip, "/status"), { signal: AbortSignal.timeout(2000) })
-        .then((r) => setConnected(r.ok))
-        .catch(() => setConnected(false));
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [esp32Ip]);
+    fetch(`${ESP32_API_URL}/status`)
+      .then((r) => setApiHealthy(r.ok))
+      .catch(() => setApiHealthy(false));
+  }, []);
 
   const handleEnroll = async () => {
-    if (!selectedMemberId || !esp32Ip) return;
+    if (!selectedMemberId) return;
     setEnrolling(true);
-    setEnrollStatus("Solicitando enrollment al ESP32...");
+    setEnrollStatus("Obteniendo siguiente slot disponible...");
 
     try {
-      // Get next available fingerprint slot
-      const { data: allMembers } = await supabase
-        .from("members")
-        .select("fingerprint_id")
-        .not("fingerprint_id", "is", null);
+      // Get next slot
+      const slotRes = await fetch(`${ESP32_API_URL}/next-slot`);
+      const slotData = await slotRes.json();
+      const nextSlot = slotData.next_slot;
 
-      const usedSlots = (allMembers || [])
-        .map((m) => parseInt(m.fingerprint_id || "0"))
-        .filter((n) => !isNaN(n) && n > 0);
-      const nextSlot = usedSlots.length > 0 ? Math.max(...usedSlots) + 1 : 1;
+      setEnrollStatus(`Asignando slot #${nextSlot}. Usa este número en el ESP32 para enrollar la huella.`);
 
-      setEnrollStatus(`Enrollando en slot #${nextSlot}. Coloca el dedo en el sensor...`);
-
-      const res = await fetch(buildEsp32Url(esp32Ip, `/enroll?slot=${nextSlot}`), {
+      // Assign slot to member in DB via edge function
+      const enrollRes = await fetch(`${ESP32_API_URL}/enroll`, {
         method: "POST",
-        signal: AbortSignal.timeout(30000),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slot: String(nextSlot), member_id: selectedMemberId }),
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Error del ESP32");
-      }
-
-      const result = await res.json();
+      const result = await enrollRes.json();
 
       if (result.success) {
-        // Save fingerprint_id to member
-        const { error } = await supabase
-          .from("members")
-          .update({ fingerprint_id: String(nextSlot) })
-          .eq("id", selectedMemberId);
-
-        if (error) {
-          toast.error("Huella enrollada pero error al guardar en BD");
-        } else {
-          toast.success(`Huella #${nextSlot} asignada correctamente`);
-          setEnrollStatus(`✅ Huella #${nextSlot} registrada exitosamente`);
-          fetchMembers();
-          setSelectedMemberId("");
-        }
+        toast.success(`Slot #${nextSlot} asignado correctamente`);
+        setEnrollStatus(`✅ Slot #${nextSlot} asignado. Ahora enrolla la huella en el ESP32 con ese slot.`);
+        fetchMembers();
+        setSelectedMemberId("");
       } else {
-        toast.error(result.message || "Error al enrollar huella");
-        setEnrollStatus(`❌ ${result.message || "Error en enrollment"}`);
+        toast.error(result.error || "Error al asignar slot");
+        setEnrollStatus(`❌ ${result.error || "Error"}`);
       }
     } catch (err: any) {
-      if (err.name === "AbortError" || err.name === "TimeoutError") {
-        toast.error("Timeout: el enrollment tardó demasiado");
-        setEnrollStatus("⏱️ Timeout en enrollment");
-      } else {
-        toast.error(err.message || "Error de conexión con ESP32");
-        setEnrollStatus(`❌ ${err.message}`);
-      }
+      toast.error(err.message || "Error de conexión");
+      setEnrollStatus(`❌ ${err.message}`);
     }
     setEnrolling(false);
+  };
+
+  const copyUrl = (path: string) => {
+    navigator.clipboard.writeText(`${ESP32_API_URL}${path}`);
+    toast.success("URL copiada al portapapeles");
   };
 
   const selectedMember = members.find((m) => m.id === selectedMemberId);
@@ -172,71 +93,70 @@ const FingerprintEnroll = () => {
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Registro de Huellas</h1>
-        <p className="text-muted-foreground">Conecta el ESP32 y enrolla huellas para los miembros</p>
+        <p className="text-muted-foreground">El ESP32 se comunica directamente con la nube — sin depender del navegador</p>
       </div>
 
-      {/* ESP32 Connection */}
+      {/* API Status */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            {connected ? (
-              <Wifi className="h-5 w-5 text-green-500" />
-            ) : (
-              <WifiOff className="h-5 w-5 text-muted-foreground" />
-            )}
-            Conexión ESP32
+            <Cloud className="h-5 w-5 text-primary" />
+            API en la Nube
           </CardTitle>
           <CardDescription>
-            Ingresa la IP que aparece en el Monitor Serial del ESP32
+            El ESP32 envía datos directamente a estos endpoints
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <Input
-                placeholder="192.168.1.100"
-                value={ipInput}
-                onChange={(e) => setIpInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSaveIp()}
-              />
-            </div>
-            <Button onClick={handleSaveIp} disabled={checking} variant="secondary">
-              {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Conectar"}
-            </Button>
+          <div className={`flex items-center gap-2 p-3 rounded-md border ${
+            apiHealthy === true
+              ? "bg-green-500/10 border-green-500/20"
+              : apiHealthy === false
+              ? "bg-destructive/10 border-destructive/20"
+              : "bg-muted border-border"
+          }`}>
+            {apiHealthy === true ? (
+              <>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className="text-sm font-medium">API funcionando correctamente</span>
+                <Badge variant="outline" className="ml-auto text-green-600 border-green-500/30">Online</Badge>
+              </>
+            ) : apiHealthy === false ? (
+              <>
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                <span className="text-sm font-medium">Error conectando a la API</span>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">Verificando...</span>
+            )}
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Aquí escribe solo la IP del ESP32, por ejemplo <span className="font-mono">10.89.158.23</span>.
-            Si configuras Chrome flags, allí sí debes usar <span className="font-mono">http://{normalizeEsp32Ip(ipInput || esp32Ip || "IP_DEL_ESP32")}</span>.
-          </p>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wide">URLs para el ESP32</Label>
+            {[
+              { label: "Registrar asistencia", path: "/attendance", method: "POST" },
+              { label: "Estado", path: "/status", method: "GET" },
+              { label: "Siguiente slot", path: "/next-slot", method: "GET" },
+              { label: "Miembros con huella", path: "/members", method: "GET" },
+            ].map((ep) => (
+              <div key={ep.path} className="flex items-center gap-2 p-2 rounded border bg-muted/30">
+                <Badge variant="outline" className="text-xs font-mono shrink-0">{ep.method}</Badge>
+                <code className="text-xs flex-1 truncate">{ESP32_API_URL}{ep.path}</code>
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => copyUrl(ep.path)}>
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
 
-          {esp32Ip && (
-            <div className={`flex items-center gap-2 p-3 rounded-md border ${
-              connected
-                ? "bg-green-500/10 border-green-500/20"
-                : "bg-destructive/10 border-destructive/20"
-            }`}>
-              {connected ? (
-                <>
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-medium">Conectado a {esp32Ip}</span>
-                  <Badge variant="outline" className="ml-auto text-green-600 border-green-500/30">Online</Badge>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                  <span className="text-sm font-medium">Desconectado de {esp32Ip}</span>
-                  <Badge variant="outline" className="ml-auto text-destructive border-destructive/30">Offline</Badge>
-                </>
-              )}
-            </div>
-          )}
-
-          {connectionHint && (
-            <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-foreground">
-              {connectionHint}
-            </div>
-          )}
+          <div className="rounded-md border border-border bg-muted/40 p-3 text-sm space-y-1">
+            <p className="font-medium">📡 Para registrar asistencia desde el ESP32:</p>
+            <code className="block text-xs bg-background p-2 rounded">
+              POST {ESP32_API_URL}/attendance<br />
+              Content-Type: application/json<br />
+              {`{"fingerprint_id": "6"}`}
+            </code>
+          </div>
         </CardContent>
       </Card>
 
@@ -245,9 +165,9 @@ const FingerprintEnroll = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Fingerprint className="h-5 w-5 text-accent" />
-            Enrollar Huella
+            Asignar Slot de Huella
           </CardTitle>
-          <CardDescription>Selecciona un miembro y registra su huella dactilar</CardDescription>
+          <CardDescription>Reserva un número de slot para un miembro y luego enróllalo en el ESP32</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -272,7 +192,7 @@ const FingerprintEnroll = () => {
               <AlertCircle className="h-4 w-4 text-amber-500" />
               <span className="text-sm">
                 Este miembro ya tiene la huella <strong>#{selectedMember.fingerprint_id}</strong>. 
-                Al enrollar se reemplazará.
+                Al asignar un nuevo slot se reemplazará.
               </span>
             </div>
           )}
@@ -286,18 +206,18 @@ const FingerprintEnroll = () => {
 
           <Button
             onClick={handleEnroll}
-            disabled={!connected || !selectedMemberId || enrolling}
+            disabled={!selectedMemberId || enrolling}
             className="w-full"
           >
             {enrolling ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Enrollando...
+                Asignando...
               </>
             ) : (
               <>
                 <Fingerprint className="mr-2 h-4 w-4" />
-                Enrollar Huella
+                Asignar Slot de Huella
               </>
             )}
           </Button>
