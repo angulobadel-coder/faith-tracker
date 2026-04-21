@@ -60,7 +60,7 @@ const FingerprintEnroll = () => {
   const [enrolling, setEnrolling] = useState(false);
   const [enrollStatus, setEnrollStatus] = useState("");
   const [enrollError, setEnrollError] = useState<{ step: string; detail: string } | null>(null);
-  const [esp32Ip, setEsp32Ip] = useState(() => localStorage.getItem(STORAGE_KEY) || "");
+  const [esp32Ip, setEsp32Ip] = useState("");
   const [esp32Connected, setEsp32Connected] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
 
