@@ -17,11 +17,51 @@ interface Member {
 
 const STORAGE_KEY = "esp32_ip";
 
+const ESP32_TIMEOUT_MS = 30000;
+
+const esp32HelpByStep: Record<string, string> = {
+  status: "El ESP32 no respondió a /status. Revisa que esté encendido, en la misma red y que la IP sea correcta.",
+  "next-slot": "El ESP32 está conectado, pero no respondió a /next-slot. Revisa que ese endpoint exista en el código Arduino y devuelva JSON con next_slot.",
+  enroll: "El ESP32 recibió la orden, pero no completó /enroll. Revisa el sensor, el dedo en el lector y que el endpoint acepte POST con JSON.",
+  database: "La huella se registró en el ESP32, pero no se pudo guardar en la base de datos. Revisa permisos o conexión de la app.",
+};
+
+const fetchEsp32Json = async (ip: string, path: string, options?: RequestInit) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ESP32_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`http://${ip}${path}`, {
+      ...options,
+      signal: controller.signal,
+    });
+    const text = await response.text();
+
+    if (!response.ok) {
+      throw new Error(`${path} respondió ${response.status}: ${text || response.statusText}`);
+    }
+
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(`${path} no devolvió JSON válido: ${text.slice(0, 120)}`);
+    }
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      throw new Error(`${path} tardó demasiado en responder`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const FingerprintEnroll = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [enrolling, setEnrolling] = useState(false);
   const [enrollStatus, setEnrollStatus] = useState("");
+  const [enrollError, setEnrollError] = useState<{ step: string; detail: string } | null>(null);
   const [esp32Ip, setEsp32Ip] = useState(() => localStorage.getItem(STORAGE_KEY) || "");
   const [esp32Connected, setEsp32Connected] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
@@ -72,24 +112,30 @@ const FingerprintEnroll = () => {
   const handleEnroll = async () => {
     if (!selectedMemberId || !esp32Ip) return;
     setEnrolling(true);
+    setEnrollError(null);
     setEnrollStatus("Solicitando enrolamiento al ESP32...");
 
     try {
       // Get next available slot from ESP32
-      const slotRes = await fetch(`http://${esp32Ip}/next-slot`);
-      const slotData = await slotRes.json();
+      const slotData = await fetchEsp32Json(esp32Ip, "/next-slot").catch((error) => {
+        throw { step: "next-slot", error };
+      });
       const nextSlot = slotData.next_slot;
+
+      if (!nextSlot) {
+        throw { step: "next-slot", error: new Error("La respuesta no incluyó next_slot") };
+      }
 
       setEnrollStatus(`Coloca el dedo en el sensor (slot #${nextSlot})...`);
 
       // Trigger enrollment on ESP32
-      const enrollRes = await fetch(`http://${esp32Ip}/enroll`, {
+      const result = await fetchEsp32Json(esp32Ip, "/enroll", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slot: nextSlot }),
+      }).catch((error) => {
+        throw { step: "enroll", error };
       });
-
-      const result = await enrollRes.json();
 
       if (result.success) {
         // Save fingerprint_id to member
@@ -98,7 +144,7 @@ const FingerprintEnroll = () => {
           .update({ fingerprint_id: String(nextSlot) })
           .eq("id", selectedMemberId);
 
-        if (error) throw error;
+        if (error) throw { step: "database", error };
 
         toast.success(`Huella #${nextSlot} registrada correctamente`);
         setEnrollStatus(`✅ Huella #${nextSlot} guardada`);
@@ -107,10 +153,14 @@ const FingerprintEnroll = () => {
       } else {
         toast.error(result.error || "Error al enrolar huella");
         setEnrollStatus(`❌ ${result.error || "Error"}`);
+        setEnrollError({ step: "enroll", detail: result.error || "El ESP32 respondió success=false" });
       }
     } catch (err: any) {
-      toast.error(err.message || "Error de conexión con el ESP32");
-      setEnrollStatus(`❌ ${err.message}`);
+      const step = err?.step || "enroll";
+      const detail = err?.error?.message || err?.message || "Error de conexión con el ESP32";
+      toast.error(detail);
+      setEnrollStatus(`❌ Falló el paso: ${step}`);
+      setEnrollError({ step, detail });
     }
     setEnrolling(false);
   };
@@ -230,6 +280,19 @@ const FingerprintEnroll = () => {
             <div className="p-3 rounded-md bg-muted border text-sm">
               {enrolling && <Loader2 className="inline h-4 w-4 animate-spin mr-2" />}
               {enrollStatus}
+            </div>
+          )}
+
+          {enrollError && (
+            <div className="space-y-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                Error en {enrollError.step}
+              </div>
+              <p>{enrollError.detail}</p>
+              <p className="text-muted-foreground">
+                {esp32HelpByStep[enrollError.step] || "Revisa el ESP32, la red Wi‑Fi y la respuesta del endpoint."}
+              </p>
             </div>
           )}
 
