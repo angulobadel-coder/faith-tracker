@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Fingerprint, CheckCircle, AlertCircle, Loader2, Wifi, WifiOff } from "lucide-react";
+import { Fingerprint, CheckCircle, AlertCircle, Loader2, Cloud } from "lucide-react";
 import { toast } from "sonner";
 
 interface Member {
@@ -15,54 +14,14 @@ interface Member {
   fingerprint_id: string | null;
 }
 
-const ESP32_TIMEOUT_MS = 30000;
-
-const esp32HelpByStep: Record<string, string> = {
-  status: "El ESP32 no respondió a /status. Revisa que esté encendido, en la misma red y que la IP sea correcta.",
-  "next-slot": "El ESP32 está conectado, pero no respondió a /next-slot. Revisa que ese endpoint exista en el código Arduino y devuelva JSON con next_slot.",
-  enroll: "El ESP32 recibió la orden, pero no completó /enroll. Revisa el sensor, el dedo en el lector y que el endpoint acepte POST con JSON.",
-  database: "La huella se registró en el ESP32, pero no se pudo guardar en la base de datos. Revisa permisos o conexión de la app.",
-};
-
-const fetchEsp32Json = async (ip: string, path: string, options?: RequestInit) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), ESP32_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(`http://${ip}${path}`, {
-      ...options,
-      signal: controller.signal,
-    });
-    const text = await response.text();
-
-    if (!response.ok) {
-      throw new Error(`${path} respondió ${response.status}: ${text || response.statusText}`);
-    }
-
-    try {
-      return text ? JSON.parse(text) : {};
-    } catch {
-      throw new Error(`${path} no devolvió JSON válido: ${text.slice(0, 120)}`);
-    }
-  } catch (error: any) {
-    if (error?.name === "AbortError") {
-      throw new Error(`${path} tardó demasiado en responder`);
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
-};
+const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/esp32-api`;
 
 const FingerprintEnroll = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState("");
-  const [enrolling, setEnrolling] = useState(false);
-  const [enrollStatus, setEnrollStatus] = useState("");
-  const [enrollError, setEnrollError] = useState<{ step: string; detail: string } | null>(null);
-  const [esp32Ip, setEsp32Ip] = useState("");
-  const [esp32Connected, setEsp32Connected] = useState<boolean | null>(null);
-  const [checking, setChecking] = useState(false);
+  const [manualSlot, setManualSlot] = useState<number | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [loadingSlot, setLoadingSlot] = useState(false);
 
   const fetchMembers = useCallback(async () => {
     const { data } = await supabase
@@ -73,87 +32,40 @@ const FingerprintEnroll = () => {
     if (data) setMembers(data);
   }, []);
 
-  useEffect(() => {
-    fetchMembers();
-  }, [fetchMembers]);
-
-  const checkConnection = useCallback(async (ip: string) => {
-    if (!ip) return;
-    setChecking(true);
+  const fetchNextSlot = useCallback(async () => {
+    setLoadingSlot(true);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(`http://${ip}/status`, { signal: controller.signal });
-      clearTimeout(timeout);
-      setEsp32Connected(res.ok);
+      const res = await fetch(`${FUNCTIONS_BASE}/next-slot`);
+      const data = await res.json();
+      setManualSlot(data.next_slot);
     } catch {
-      setEsp32Connected(false);
+      toast.error("No se pudo obtener el próximo slot");
     }
-    setChecking(false);
+    setLoadingSlot(false);
   }, []);
 
-  const handleConnect = () => {
-    if (!esp32Ip.trim()) {
-      toast.error("Ingresa una IP válida");
-      return;
+  useEffect(() => {
+    fetchMembers();
+    fetchNextSlot();
+  }, [fetchMembers, fetchNextSlot]);
+
+  const handleAssign = async () => {
+    if (!selectedMemberId || manualSlot === null) return;
+    setAssigning(true);
+    const { error } = await supabase
+      .from("members")
+      .update({ fingerprint_id: String(manualSlot) })
+      .eq("id", selectedMemberId);
+
+    if (error) {
+      toast.error("Error al asignar el slot");
+    } else {
+      toast.success(`Slot #${manualSlot} asignado correctamente`);
+      setSelectedMemberId("");
+      await fetchMembers();
+      await fetchNextSlot();
     }
-    checkConnection(esp32Ip.trim());
-  };
-
-  const handleEnroll = async () => {
-    if (!selectedMemberId || !esp32Ip) return;
-    setEnrolling(true);
-    setEnrollError(null);
-    setEnrollStatus("Solicitando enrolamiento al ESP32...");
-
-    try {
-      // Get next available slot from ESP32
-      const slotData = await fetchEsp32Json(esp32Ip, "/next-slot").catch((error) => {
-        throw { step: "next-slot", error };
-      });
-      const nextSlot = slotData.next_slot;
-
-      if (!nextSlot) {
-        throw { step: "next-slot", error: new Error("La respuesta no incluyó next_slot") };
-      }
-
-      setEnrollStatus(`Coloca el dedo en el sensor (slot #${nextSlot})...`);
-
-      // Trigger enrollment on ESP32
-      const result = await fetchEsp32Json(esp32Ip, "/enroll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slot: nextSlot }),
-      }).catch((error) => {
-        throw { step: "enroll", error };
-      });
-
-      if (result.success) {
-        // Save fingerprint_id to member
-        const { error } = await supabase
-          .from("members")
-          .update({ fingerprint_id: String(nextSlot) })
-          .eq("id", selectedMemberId);
-
-        if (error) throw { step: "database", error };
-
-        toast.success(`Huella #${nextSlot} registrada correctamente`);
-        setEnrollStatus(`✅ Huella #${nextSlot} guardada`);
-        fetchMembers();
-        setSelectedMemberId("");
-      } else {
-        toast.error(result.error || "Error al enrolar huella");
-        setEnrollStatus(`❌ ${result.error || "Error"}`);
-        setEnrollError({ step: "enroll", detail: result.error || "El ESP32 respondió success=false" });
-      }
-    } catch (err: any) {
-      const step = err?.step || "enroll";
-      const detail = err?.error?.message || err?.message || "Error de conexión con el ESP32";
-      toast.error(detail);
-      setEnrollStatus(`❌ Falló el paso: ${step}`);
-      setEnrollError({ step, detail });
-    }
-    setEnrolling(false);
+    setAssigning(false);
   };
 
   const selectedMember = members.find((m) => m.id === selectedMemberId);
@@ -162,78 +74,37 @@ const FingerprintEnroll = () => {
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Registro de Huellas</h1>
-        <p className="text-muted-foreground">Conecta el ESP32 e inscribe huellas de los miembros</p>
+        <p className="text-muted-foreground">
+          Asigna el slot de huella que enrolarás en el ESP32 a un miembro
+        </p>
       </div>
 
-      {/* ESP32 Connection */}
+      {/* Cloud info */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            {esp32Connected ? (
-              <Wifi className="h-5 w-5 text-green-500" />
-            ) : (
-              <WifiOff className="h-5 w-5 text-muted-foreground" />
-            )}
-            Conexión con ESP32
+            <Cloud className="h-5 w-5 text-accent" />
+            Modo Nube Activo
           </CardTitle>
           <CardDescription>
-            Asegúrate de que el ESP32 y este dispositivo estén en la misma red Wi-Fi
+            El ESP32 se conecta directo al backend en la nube. No necesitas estar en la misma red Wi‑Fi
+            para registrar asistencias — funcionan automáticamente cuando alguien pone el dedo en el sensor.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="ip">Dirección IP del ESP32</Label>
-            <div className="flex gap-2">
-              <Input
-                id="ip"
-                placeholder="192.168.1.100"
-                value={esp32Ip}
-                onChange={(e) => setEsp32Ip(e.target.value)}
-              />
-              <Button
-                onClick={handleConnect}
-                disabled={!esp32Ip || checking}
-              >
-                {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Conectar"}
-              </Button>
-            </div>
-          </div>
-
-          {esp32Connected !== null && (
-            <div
-              className={`flex items-center gap-2 p-3 rounded-md border ${
-                esp32Connected
-                  ? "bg-green-500/10 border-green-500/20"
-                  : "bg-destructive/10 border-destructive/20"
-              }`}
-            >
-              {esp32Connected ? (
-                <>
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-medium">ESP32 conectado correctamente</span>
-                  <Badge variant="outline" className="ml-auto text-green-600 border-green-500/30">
-                    Online
-                  </Badge>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                  <span className="text-sm font-medium">No se pudo conectar al ESP32</span>
-                </>
-              )}
-            </div>
-          )}
-        </CardContent>
       </Card>
 
-      {/* Enroll Fingerprint */}
+      {/* Assign slot */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Fingerprint className="h-5 w-5 text-accent" />
-            Registrar Huella
+            Asignar Slot a Miembro
           </CardTitle>
-          <CardDescription>Selecciona un miembro y enrola su huella en el sensor</CardDescription>
+          <CardDescription>
+            <strong>Paso 1:</strong> Enrola la huella física en el sensor ESP32 con el botón físico (slot
+            sugerido más abajo).<br />
+            <strong>Paso 2:</strong> Aquí asignas ese mismo número de slot al miembro correspondiente.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -253,50 +124,54 @@ const FingerprintEnroll = () => {
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label>Número de slot a asignar</Label>
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 p-3 rounded-md border bg-muted text-center">
+                {loadingSlot ? (
+                  <Loader2 className="inline h-4 w-4 animate-spin" />
+                ) : (
+                  <span className="text-xl font-bold">#{manualSlot ?? "?"}</span>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Próximo slot sugerido (puedes editar más abajo)
+                </p>
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={127}
+                value={manualSlot ?? ""}
+                onChange={(e) => setManualSlot(e.target.value ? parseInt(e.target.value) : null)}
+                className="w-24 h-12 text-center text-lg rounded-md border bg-background px-2"
+              />
+            </div>
+          </div>
+
           {selectedMember && selectedMember.fingerprint_id && (
             <div className="flex items-center gap-2 p-3 rounded-md bg-amber-500/10 border border-amber-500/20">
               <AlertCircle className="h-4 w-4 text-amber-500" />
               <span className="text-sm">
                 Este miembro ya tiene la huella <strong>#{selectedMember.fingerprint_id}</strong>.
-                Al registrar una nueva se reemplazará.
+                Al asignar una nueva se reemplazará.
               </span>
             </div>
           )}
 
-          {enrollStatus && (
-            <div className="p-3 rounded-md bg-muted border text-sm">
-              {enrolling && <Loader2 className="inline h-4 w-4 animate-spin mr-2" />}
-              {enrollStatus}
-            </div>
-          )}
-
-          {enrollError && (
-            <div className="space-y-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                Error en {enrollError.step}
-              </div>
-              <p>{enrollError.detail}</p>
-              <p className="text-muted-foreground">
-                {esp32HelpByStep[enrollError.step] || "Revisa el ESP32, la red Wi‑Fi y la respuesta del endpoint."}
-              </p>
-            </div>
-          )}
-
           <Button
-            onClick={handleEnroll}
-            disabled={!selectedMemberId || !esp32Connected || enrolling}
+            onClick={handleAssign}
+            disabled={!selectedMemberId || manualSlot === null || assigning}
             className="w-full"
           >
-            {enrolling ? (
+            {assigning ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Enrolando...
+                Asignando...
               </>
             ) : (
               <>
-                <Fingerprint className="mr-2 h-4 w-4" />
-                Iniciar Registro de Huella
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Asignar Slot al Miembro
               </>
             )}
           </Button>
