@@ -283,6 +283,19 @@ const FingerprintEnroll = () => {
             </div>
           )}
 
+          {enrollError && (
+            <div className="space-y-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                Error en {enrollError.step}
+              </div>
+              <p>{enrollError.detail}</p>
+              <p className="text-muted-foreground">
+                {esp32HelpByStep[enrollError.step] || "Revisa el ESP32, la red Wi‑Fi y la respuesta del endpoint."}
+              </p>
+            </div>
+          )}
+
           <Button
             onClick={handleEnroll}
             disabled={!selectedMemberId || !esp32Connected || enrolling}
