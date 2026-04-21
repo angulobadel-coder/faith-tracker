@@ -92,18 +92,11 @@ const FingerprintEnroll = () => {
     setChecking(false);
   }, []);
 
-  // Auto-check on mount if IP saved
-  useEffect(() => {
-    if (esp32Ip) checkConnection(esp32Ip);
-  }, [esp32Ip, checkConnection]);
-
-  const handleSaveIp = () => {
+  const handleConnect = () => {
     if (!esp32Ip.trim()) {
       toast.error("Ingresa una IP válida");
       return;
     }
-    localStorage.setItem(STORAGE_KEY, esp32Ip.trim());
-    toast.success("IP guardada");
     checkConnection(esp32Ip.trim());
   };
 
