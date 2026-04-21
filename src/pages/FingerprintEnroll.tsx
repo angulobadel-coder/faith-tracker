@@ -15,8 +15,6 @@ interface Member {
   fingerprint_id: string | null;
 }
 
-const STORAGE_KEY = "esp32_ip";
-
 const ESP32_TIMEOUT_MS = 30000;
 
 const esp32HelpByStep: Record<string, string> = {
@@ -62,7 +60,7 @@ const FingerprintEnroll = () => {
   const [enrolling, setEnrolling] = useState(false);
   const [enrollStatus, setEnrollStatus] = useState("");
   const [enrollError, setEnrollError] = useState<{ step: string; detail: string } | null>(null);
-  const [esp32Ip, setEsp32Ip] = useState(() => localStorage.getItem(STORAGE_KEY) || "");
+  const [esp32Ip, setEsp32Ip] = useState("");
   const [esp32Connected, setEsp32Connected] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
 
@@ -94,18 +92,11 @@ const FingerprintEnroll = () => {
     setChecking(false);
   }, []);
 
-  // Auto-check on mount if IP saved
-  useEffect(() => {
-    if (esp32Ip) checkConnection(esp32Ip);
-  }, [esp32Ip, checkConnection]);
-
-  const handleSaveIp = () => {
+  const handleConnect = () => {
     if (!esp32Ip.trim()) {
       toast.error("Ingresa una IP válida");
       return;
     }
-    localStorage.setItem(STORAGE_KEY, esp32Ip.trim());
-    toast.success("IP guardada");
     checkConnection(esp32Ip.trim());
   };
 
@@ -199,15 +190,11 @@ const FingerprintEnroll = () => {
                 value={esp32Ip}
                 onChange={(e) => setEsp32Ip(e.target.value)}
               />
-              <Button onClick={handleSaveIp} variant="secondary">
-                Guardar
-              </Button>
               <Button
-                onClick={() => checkConnection(esp32Ip)}
+                onClick={handleConnect}
                 disabled={!esp32Ip || checking}
-                variant="outline"
               >
-                {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Probar"}
+                {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Conectar"}
               </Button>
             </div>
           </div>
