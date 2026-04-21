@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Fingerprint, CheckCircle, AlertCircle, Loader2, Wifi, WifiOff } from "lucide-react";
+import { Fingerprint, Wifi, WifiOff, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Member {
@@ -15,16 +15,15 @@ interface Member {
   fingerprint_id: string | null;
 }
 
-const STORAGE_KEY = "esp32_ip";
-
 const FingerprintEnroll = () => {
+  const [esp32Ip, setEsp32Ip] = useState(() => localStorage.getItem("esp32_ip") || "");
+  const [ipInput, setIpInput] = useState(() => localStorage.getItem("esp32_ip") || "");
+  const [connected, setConnected] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [enrolling, setEnrolling] = useState(false);
   const [enrollStatus, setEnrollStatus] = useState("");
-  const [esp32Ip, setEsp32Ip] = useState(() => localStorage.getItem(STORAGE_KEY) || "");
-  const [esp32Connected, setEsp32Connected] = useState<boolean | null>(null);
-  const [checking, setChecking] = useState(false);
 
   const fetchMembers = useCallback(async () => {
     const { data } = await supabase
@@ -39,57 +38,74 @@ const FingerprintEnroll = () => {
     fetchMembers();
   }, [fetchMembers]);
 
-  const checkConnection = useCallback(async (ip: string) => {
-    if (!ip) return;
+  const checkConnection = async (ip: string) => {
     setChecking(true);
+    setConnected(false);
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
+      const timeout = setTimeout(() => controller.abort(), 3000);
       const res = await fetch(`http://${ip}/status`, { signal: controller.signal });
       clearTimeout(timeout);
-      setEsp32Connected(res.ok);
+      if (res.ok) {
+        setConnected(true);
+        setEsp32Ip(ip);
+        localStorage.setItem("esp32_ip", ip);
+        toast.success("ESP32 conectado correctamente");
+      } else {
+        toast.error("ESP32 respondió con error");
+      }
     } catch {
-      setEsp32Connected(false);
+      toast.error("No se pudo conectar al ESP32. Verifica la IP y que estés en la misma red.");
     }
     setChecking(false);
-  }, []);
-
-  // Auto-check on mount if IP saved
-  useEffect(() => {
-    if (esp32Ip) checkConnection(esp32Ip);
-  }, [esp32Ip, checkConnection]);
+  };
 
   const handleSaveIp = () => {
-    if (!esp32Ip.trim()) {
-      toast.error("Ingresa una IP válida");
-      return;
-    }
-    localStorage.setItem(STORAGE_KEY, esp32Ip.trim());
-    toast.success("IP guardada");
-    checkConnection(esp32Ip.trim());
+    if (!ipInput.trim()) return;
+    checkConnection(ipInput.trim());
   };
+
+  // Periodically check connection
+  useEffect(() => {
+    if (!esp32Ip) return;
+    const interval = setInterval(() => {
+      fetch(`http://${esp32Ip}/status`, { signal: AbortSignal.timeout(2000) })
+        .then((r) => setConnected(r.ok))
+        .catch(() => setConnected(false));
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [esp32Ip]);
 
   const handleEnroll = async () => {
     if (!selectedMemberId || !esp32Ip) return;
     setEnrolling(true);
-    setEnrollStatus("Solicitando enrolamiento al ESP32...");
+    setEnrollStatus("Solicitando enrollment al ESP32...");
 
     try {
-      // Get next available slot from ESP32
-      const slotRes = await fetch(`http://${esp32Ip}/next-slot`);
-      const slotData = await slotRes.json();
-      const nextSlot = slotData.next_slot;
+      // Get next available fingerprint slot
+      const { data: allMembers } = await supabase
+        .from("members")
+        .select("fingerprint_id")
+        .not("fingerprint_id", "is", null);
 
-      setEnrollStatus(`Coloca el dedo en el sensor (slot #${nextSlot})...`);
+      const usedSlots = (allMembers || [])
+        .map((m) => parseInt(m.fingerprint_id || "0"))
+        .filter((n) => !isNaN(n) && n > 0);
+      const nextSlot = usedSlots.length > 0 ? Math.max(...usedSlots) + 1 : 1;
 
-      // Trigger enrollment on ESP32
-      const enrollRes = await fetch(`http://${esp32Ip}/enroll`, {
+      setEnrollStatus(`Enrollando en slot #${nextSlot}. Coloca el dedo en el sensor...`);
+
+      const res = await fetch(`http://${esp32Ip}/enroll?slot=${nextSlot}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slot: nextSlot }),
+        signal: AbortSignal.timeout(30000),
       });
 
-      const result = await enrollRes.json();
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Error del ESP32");
+      }
+
+      const result = await res.json();
 
       if (result.success) {
         // Save fingerprint_id to member
@@ -98,19 +114,26 @@ const FingerprintEnroll = () => {
           .update({ fingerprint_id: String(nextSlot) })
           .eq("id", selectedMemberId);
 
-        if (error) throw error;
-
-        toast.success(`Huella #${nextSlot} registrada correctamente`);
-        setEnrollStatus(`✅ Huella #${nextSlot} guardada`);
-        fetchMembers();
-        setSelectedMemberId("");
+        if (error) {
+          toast.error("Huella enrollada pero error al guardar en BD");
+        } else {
+          toast.success(`Huella #${nextSlot} asignada correctamente`);
+          setEnrollStatus(`✅ Huella #${nextSlot} registrada exitosamente`);
+          fetchMembers();
+          setSelectedMemberId("");
+        }
       } else {
-        toast.error(result.error || "Error al enrolar huella");
-        setEnrollStatus(`❌ ${result.error || "Error"}`);
+        toast.error(result.message || "Error al enrollar huella");
+        setEnrollStatus(`❌ ${result.message || "Error en enrollment"}`);
       }
     } catch (err: any) {
-      toast.error(err.message || "Error de conexión con el ESP32");
-      setEnrollStatus(`❌ ${err.message}`);
+      if (err.name === "AbortError" || err.name === "TimeoutError") {
+        toast.error("Timeout: el enrollment tardó demasiado");
+        setEnrollStatus("⏱️ Timeout en enrollment");
+      } else {
+        toast.error(err.message || "Error de conexión con ESP32");
+        setEnrollStatus(`❌ ${err.message}`);
+      }
     }
     setEnrolling(false);
   };
@@ -121,67 +144,56 @@ const FingerprintEnroll = () => {
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Registro de Huellas</h1>
-        <p className="text-muted-foreground">Conecta el ESP32 e inscribe huellas de los miembros</p>
+        <p className="text-muted-foreground">Conecta el ESP32 y enrolla huellas para los miembros</p>
       </div>
 
       {/* ESP32 Connection */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            {esp32Connected ? (
+            {connected ? (
               <Wifi className="h-5 w-5 text-green-500" />
             ) : (
               <WifiOff className="h-5 w-5 text-muted-foreground" />
             )}
-            Conexión con ESP32
+            Conexión ESP32
           </CardTitle>
           <CardDescription>
-            Asegúrate de que el ESP32 y este dispositivo estén en la misma red Wi-Fi
+            Ingresa la IP que aparece en el Monitor Serial del ESP32
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="ip">Dirección IP del ESP32</Label>
-            <div className="flex gap-2">
+          <div className="flex gap-2">
+            <div className="flex-1">
               <Input
-                id="ip"
                 placeholder="192.168.1.100"
-                value={esp32Ip}
-                onChange={(e) => setEsp32Ip(e.target.value)}
+                value={ipInput}
+                onChange={(e) => setIpInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveIp()}
               />
-              <Button onClick={handleSaveIp} variant="secondary">
-                Guardar
-              </Button>
-              <Button
-                onClick={() => checkConnection(esp32Ip)}
-                disabled={!esp32Ip || checking}
-                variant="outline"
-              >
-                {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Probar"}
-              </Button>
             </div>
+            <Button onClick={handleSaveIp} disabled={checking} variant="secondary">
+              {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Conectar"}
+            </Button>
           </div>
 
-          {esp32Connected !== null && (
-            <div
-              className={`flex items-center gap-2 p-3 rounded-md border ${
-                esp32Connected
-                  ? "bg-green-500/10 border-green-500/20"
-                  : "bg-destructive/10 border-destructive/20"
-              }`}
-            >
-              {esp32Connected ? (
+          {esp32Ip && (
+            <div className={`flex items-center gap-2 p-3 rounded-md border ${
+              connected
+                ? "bg-green-500/10 border-green-500/20"
+                : "bg-destructive/10 border-destructive/20"
+            }`}>
+              {connected ? (
                 <>
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-medium">ESP32 conectado correctamente</span>
-                  <Badge variant="outline" className="ml-auto text-green-600 border-green-500/30">
-                    Online
-                  </Badge>
+                  <span className="text-sm font-medium">Conectado a {esp32Ip}</span>
+                  <Badge variant="outline" className="ml-auto text-green-600 border-green-500/30">Online</Badge>
                 </>
               ) : (
                 <>
                   <AlertCircle className="h-4 w-4 text-destructive" />
-                  <span className="text-sm font-medium">No se pudo conectar al ESP32</span>
+                  <span className="text-sm font-medium">Desconectado de {esp32Ip}</span>
+                  <Badge variant="outline" className="ml-auto text-destructive border-destructive/30">Offline</Badge>
                 </>
               )}
             </div>
@@ -194,9 +206,9 @@ const FingerprintEnroll = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Fingerprint className="h-5 w-5 text-accent" />
-            Registrar Huella
+            Enrollar Huella
           </CardTitle>
-          <CardDescription>Selecciona un miembro y enrola su huella en el sensor</CardDescription>
+          <CardDescription>Selecciona un miembro y registra su huella dactilar</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -220,8 +232,8 @@ const FingerprintEnroll = () => {
             <div className="flex items-center gap-2 p-3 rounded-md bg-amber-500/10 border border-amber-500/20">
               <AlertCircle className="h-4 w-4 text-amber-500" />
               <span className="text-sm">
-                Este miembro ya tiene la huella <strong>#{selectedMember.fingerprint_id}</strong>.
-                Al registrar una nueva se reemplazará.
+                Este miembro ya tiene la huella <strong>#{selectedMember.fingerprint_id}</strong>. 
+                Al enrollar se reemplazará.
               </span>
             </div>
           )}
@@ -235,18 +247,18 @@ const FingerprintEnroll = () => {
 
           <Button
             onClick={handleEnroll}
-            disabled={!selectedMemberId || !esp32Connected || enrolling}
+            disabled={!connected || !selectedMemberId || enrolling}
             className="w-full"
           >
             {enrolling ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Enrolando...
+                Enrollando...
               </>
             ) : (
               <>
                 <Fingerprint className="mr-2 h-4 w-4" />
-                Iniciar Registro de Huella
+                Enrollar Huella
               </>
             )}
           </Button>
