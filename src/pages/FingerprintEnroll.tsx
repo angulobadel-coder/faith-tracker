@@ -190,15 +190,11 @@ const FingerprintEnroll = () => {
                 value={esp32Ip}
                 onChange={(e) => setEsp32Ip(e.target.value)}
               />
-              <Button onClick={handleSaveIp} variant="secondary">
-                Guardar
-              </Button>
               <Button
-                onClick={() => checkConnection(esp32Ip)}
+                onClick={handleConnect}
                 disabled={!esp32Ip || checking}
-                variant="outline"
               >
-                {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Probar"}
+                {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Conectar"}
               </Button>
             </div>
           </div>
