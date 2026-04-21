@@ -15,8 +15,6 @@ interface Member {
   fingerprint_id: string | null;
 }
 
-const STORAGE_KEY = "esp32_ip";
-
 const ESP32_TIMEOUT_MS = 30000;
 
 const esp32HelpByStep: Record<string, string> = {
