@@ -6,94 +6,173 @@
 
 @layer base {
   :root {
-    --background: 40 33% 97%;
-    --foreground: 215 35% 15%;
+    /* Dark purple theme with warm accents */
+    --background: 270 55% 8%;
+    --foreground: 0 0% 100%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 35% 15%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 35% 15%;
+    --popover: 270 45% 12%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 215 55% 25%;
-    --primary-foreground: 40 33% 97%;
+    /* Warm gradient accents */
+    --primary: 28 100% 50%;            /* #ff8c00 orange */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 45% 92%;
-    --secondary-foreground: 215 35% 15%;
+    --secondary: 345 100% 68%;         /* #ff5e8a coral */
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 40 20% 94%;
-    --muted-foreground: 215 15% 46%;
+    --accent: 290 70% 48%;             /* #b14 magenta */
+    --accent-foreground: 0 0% 100%;
 
-    --accent: 38 92% 50%;
-    --accent-foreground: 215 55% 12%;
+    --muted: 270 30% 18%;
+    --muted-foreground: 0 0% 70%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 20% 88%;
-    --input: 215 20% 88%;
-    --ring: 215 55% 25%;
+    --border: 0 0% 100%;
+    --input: 0 0% 100%;
+    --ring: 28 100% 50%;
 
-    --radius: 0.625rem;
+    --radius: 1rem;
 
-    --sidebar-background: 215 55% 20%;
-    --sidebar-foreground: 40 33% 95%;
-    --sidebar-primary: 38 92% 50%;
-    --sidebar-primary-foreground: 215 55% 12%;
-    --sidebar-accent: 215 45% 28%;
-    --sidebar-accent-foreground: 40 33% 95%;
-    --sidebar-border: 215 40% 30%;
-    --sidebar-ring: 38 92% 50%;
+    /* Sidebar (glass-like) */
+    --sidebar-background: 270 50% 10%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 28 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 270 35% 18%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 100%;
+    --sidebar-ring: 28 100% 50%;
 
-    --success: 152 60% 40%;
+    --success: 152 60% 45%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 215 55% 12%;
-    --info: 200 80% 50%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 10%;
+    --info: 215 90% 60%;
     --info-foreground: 0 0% 100%;
+
+    /* Composed design tokens */
+    --gradient-primary: linear-gradient(135deg, #ff8c00 0%, #ff5e8a 50%, #b14ad6 100%);
+    --gradient-bg: radial-gradient(ellipse at top, #2a1547 0%, #160a2e 50%, #0a0418 100%);
+    --shadow-glass: 0 30px 80px -20px rgba(0, 0, 0, 0.6);
+    --shadow-cta: 0 10px 30px -8px rgba(255, 94, 138, 0.55);
   }
 
   .dark {
-    --background: 215 40% 8%;
-    --foreground: 40 33% 95%;
-    --card: 215 35% 12%;
-    --card-foreground: 40 33% 95%;
-    --popover: 215 35% 12%;
-    --popover-foreground: 40 33% 95%;
-    --primary: 38 92% 50%;
-    --primary-foreground: 215 55% 12%;
-    --secondary: 215 30% 18%;
-    --secondary-foreground: 40 33% 95%;
-    --muted: 215 25% 16%;
-    --muted-foreground: 215 15% 60%;
-    --accent: 38 80% 45%;
-    --accent-foreground: 215 55% 12%;
-    --destructive: 0 62% 30%;
+    /* Same palette - app is always dark themed */
+    --background: 270 55% 8%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 100%;
+    --popover: 270 45% 12%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 28 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 345 100% 68%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 290 70% 48%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 270 30% 18%;
+    --muted-foreground: 0 0% 70%;
+    --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 215 25% 22%;
-    --input: 215 25% 22%;
-    --ring: 38 92% 50%;
-    --sidebar-background: 215 45% 10%;
-    --sidebar-foreground: 40 33% 95%;
-    --sidebar-primary: 38 92% 50%;
-    --sidebar-primary-foreground: 215 55% 12%;
-    --sidebar-accent: 215 35% 16%;
-    --sidebar-accent-foreground: 40 33% 95%;
-    --sidebar-border: 215 30% 18%;
-    --sidebar-ring: 38 92% 50%;
+    --border: 0 0% 100%;
+    --input: 0 0% 100%;
+    --ring: 28 100% 50%;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border) / 0.13);
+  }
+
+  html, body, #root {
+    min-height: 100%;
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply text-foreground font-sans;
+    background: var(--gradient-bg);
+    background-attachment: fixed;
+    color: #fff;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Merriweather', serif;
   }
+}
+
+@layer components {
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: var(--shadow-glass);
+    border-radius: 1.5rem;
+  }
+
+  .glass-input {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 0.75rem;
+    color: #fff;
+    transition: all 0.2s ease;
+  }
+  .glass-input::placeholder { color: rgba(255, 255, 255, 0.45); }
+  .glass-input:focus,
+  .glass-input:focus-visible {
+    outline: none;
+    border-color: rgba(255, 140, 0, 0.6);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.15);
+  }
+
+  .btn-gradient {
+    background: var(--gradient-primary);
+    color: #fff;
+    box-shadow: var(--shadow-cta);
+    transition: filter 0.2s ease, transform 0.1s ease;
+  }
+  .btn-gradient:hover { filter: brightness(1.1); }
+  .btn-gradient:active { transform: scale(0.99); }
+
+  .halos::before,
+  .halos::after,
+  .halos > .halo-blue {
+    content: "";
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .halos::before {
+    width: 28rem; height: 28rem;
+    top: -8rem; left: -8rem;
+    background: rgba(255, 140, 0, 0.35);
+  }
+  .halos::after {
+    width: 32rem; height: 32rem;
+    bottom: -10rem; right: -10rem;
+    background: rgba(190, 60, 200, 0.35);
+  }
+  .halo-blue {
+    width: 24rem; height: 24rem;
+    top: 30%; right: -6rem;
+    background: rgba(60, 120, 255, 0.18);
+  }
+
+  .text-secondary-soft { color: rgba(255, 255, 255, 0.7); }
+  .text-tertiary-soft { color: rgba(255, 255, 255, 0.45); }
+}
+
+@layer utilities {
+  .bg-gradient-primary { background: var(--gradient-primary); }
+  .bg-gradient-bg { background: var(--gradient-bg); }
 }
