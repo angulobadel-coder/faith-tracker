@@ -24,6 +24,7 @@ const Auth = () => {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminConfirmPassword, setAdminConfirmPassword] = useState("");
+  const [adminInviteCode, setAdminInviteCode] = useState("");
 
   // Member signup state
   const [memberName, setMemberName] = useState("");
@@ -60,16 +61,24 @@ const Auth = () => {
       toast.error("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
+    if (!adminInviteCode.trim()) {
+      toast.error("Debes ingresar el código de invitación.");
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email: adminEmail,
-      password: adminPassword,
-      options: { data: { full_name: adminName } },
+    const { data, error } = await supabase.functions.invoke("pastor-signup", {
+      body: {
+        full_name: adminName,
+        email: adminEmail,
+        password: adminPassword,
+        invite_code: adminInviteCode.trim(),
+      },
     });
-    if (error) {
-      toast.error(error.message);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error ?? error?.message ?? "Error al crear cuenta");
     } else {
-      toast.success("Revisa tu correo para confirmar tu cuenta de administrador.");
+      toast.success("Cuenta de pastor creada. Ya puedes iniciar sesión.");
+      setAdminName(""); setAdminEmail(""); setAdminPassword(""); setAdminConfirmPassword(""); setAdminInviteCode("");
     }
     setLoading(false);
   };
