@@ -63,10 +63,9 @@
   }
 
   .dark {
-    /* Same palette - app is always dark themed */
     --background: 270 55% 8%;
     --foreground: 0 0% 100%;
-    --card: 0 0% 100%;
+    --card: 270 40% 14%;
     --card-foreground: 0 0% 100%;
     --popover: 270 45% 12%;
     --popover-foreground: 0 0% 100%;
@@ -80,8 +79,8 @@
     --muted-foreground: 0 0% 70%;
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 100%;
-    --input: 0 0% 100%;
+    --border: 270 30% 25%;
+    --input: 270 30% 25%;
     --ring: 28 100% 50%;
   }
 }
