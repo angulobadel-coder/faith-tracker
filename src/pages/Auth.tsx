@@ -117,26 +117,17 @@ const Auth = () => {
       return;
     }
 
-    // Insert into members table
-    const { data: memberData, error: memberError } = await supabase
-      .from("members")
-      .insert({
-        full_name: memberName.trim(),
-        email: memberEmail.trim(),
-        phone: memberPhone.trim() || null,
-        birth_date: memberBirthDate || null,
-        membership_reason: memberReason.trim() || null,
-      })
-      .select("id")
-      .single();
+    // Register member via secure RPC (no direct table insert from anon)
+    const { error: rpcError } = await supabase.rpc("register_member", {
+      _full_name: memberName.trim(),
+      _email: memberEmail.trim(),
+      _phone: memberPhone.trim() || null,
+      _birth_date: memberBirthDate || null,
+      _reason: memberReason.trim() || null,
+    });
 
-    if (!memberError && memberData) {
-      await supabase.from("alerts").insert({
-        member_id: memberData.id,
-        alert_type: "nuevo_miembro",
-        description: `Nuevo miembro registrado: ${memberName.trim()}`,
-        status: "pendiente",
-      });
+    if (rpcError) {
+      toast.error("Error al registrar miembro: " + rpcError.message);
     }
 
     toast.success("¡Cuenta creada! Revisa tu correo para confirmar.");
