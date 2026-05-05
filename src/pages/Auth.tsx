@@ -142,16 +142,20 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-lg animate-fade-in">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary">
-            <Church className="h-7 w-7 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl">Asistencia Iglesia</CardTitle>
-          <CardDescription>Sistema de registro de asistencia y seguimiento</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="halos relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+      <div className="halo-blue" />
+      <div className="glass relative z-10 w-full max-w-lg animate-fade-in p-8">
+        <div className="text-center mb-6">
+          <img
+            src={logoCfa}
+            alt="Centro Familiar de Alabanza"
+            className="mx-auto mb-4 h-40 w-auto drop-shadow-[0_10px_30px_rgba(255,94,138,0.35)]"
+          />
+          <h1 className="text-2xl font-bold text-white">Asistencia CFA</h1>
+          <p className="text-secondary-soft text-sm mt-1">Sistema de registro de asistencia y seguimiento</p>
+        </div>
+        <div>
+
           <Tabs defaultValue="login">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="login">Ingresar</TabsTrigger>
