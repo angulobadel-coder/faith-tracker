@@ -13,7 +13,7 @@ export function useAuth() {
       .select("role")
       .eq("user_id", userId)
       .maybeSingle();
-    setRole(data?.role ?? "admin");
+    setRole(data?.role ?? "member");
   };
 
   useEffect(() => {

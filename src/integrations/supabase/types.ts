@@ -155,7 +155,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      register_attendance_by_fingerprint: {
+        Args: { _fp_id: string; _service?: string }
+        Returns: Json
+      }
+      register_member: {
+        Args: {
+          _birth_date?: string
+          _email: string
+          _full_name: string
+          _phone?: string
+          _reason?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

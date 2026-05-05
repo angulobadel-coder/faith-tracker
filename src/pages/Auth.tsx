@@ -24,6 +24,7 @@ const Auth = () => {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminConfirmPassword, setAdminConfirmPassword] = useState("");
+  const [adminInviteCode, setAdminInviteCode] = useState("");
 
   // Member signup state
   const [memberName, setMemberName] = useState("");
@@ -60,16 +61,24 @@ const Auth = () => {
       toast.error("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
+    if (!adminInviteCode.trim()) {
+      toast.error("Debes ingresar el código de invitación.");
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email: adminEmail,
-      password: adminPassword,
-      options: { data: { full_name: adminName } },
+    const { data, error } = await supabase.functions.invoke("pastor-signup", {
+      body: {
+        full_name: adminName,
+        email: adminEmail,
+        password: adminPassword,
+        invite_code: adminInviteCode.trim(),
+      },
     });
-    if (error) {
-      toast.error(error.message);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error ?? error?.message ?? "Error al crear cuenta");
     } else {
-      toast.success("Revisa tu correo para confirmar tu cuenta de administrador.");
+      toast.success("Cuenta de pastor creada. Ya puedes iniciar sesión.");
+      setAdminName(""); setAdminEmail(""); setAdminPassword(""); setAdminConfirmPassword(""); setAdminInviteCode("");
     }
     setLoading(false);
   };
@@ -108,26 +117,17 @@ const Auth = () => {
       return;
     }
 
-    // Insert into members table
-    const { data: memberData, error: memberError } = await supabase
-      .from("members")
-      .insert({
-        full_name: memberName.trim(),
-        email: memberEmail.trim(),
-        phone: memberPhone.trim() || null,
-        birth_date: memberBirthDate || null,
-        membership_reason: memberReason.trim() || null,
-      })
-      .select("id")
-      .single();
+    // Register member via secure RPC (no direct table insert from anon)
+    const { error: rpcError } = await supabase.rpc("register_member", {
+      _full_name: memberName.trim(),
+      _email: memberEmail.trim(),
+      _phone: memberPhone.trim() || null,
+      _birth_date: memberBirthDate || null,
+      _reason: memberReason.trim() || null,
+    });
 
-    if (!memberError && memberData) {
-      await supabase.from("alerts").insert({
-        member_id: memberData.id,
-        alert_type: "nuevo_miembro",
-        description: `Nuevo miembro registrado: ${memberName.trim()}`,
-        status: "pendiente",
-      });
+    if (rpcError) {
+      toast.error("Error al registrar miembro: " + rpcError.message);
     }
 
     toast.success("¡Cuenta creada! Revisa tu correo para confirmar.");
@@ -205,6 +205,10 @@ const Auth = () => {
                 <div className="space-y-2">
                   <Label className="text-secondary-soft" htmlFor="admin-confirm">Confirmar contraseña</Label>
                   <Input className="glass-input" id="admin-confirm" type="password" value={adminConfirmPassword} onChange={(e) => setAdminConfirmPassword(e.target.value)} required minLength={6} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-secondary-soft" htmlFor="admin-invite">Código de invitación</Label>
+                  <Input className="glass-input" id="admin-invite" type="password" value={adminInviteCode} onChange={(e) => setAdminInviteCode(e.target.value)} required placeholder="Provisto por el administrador" />
                 </div>
                 <Button type="submit" className="w-full btn-gradient border-0" disabled={loading}>
                   {loading ? "Registrando..." : "Crear Cuenta de Pastor"}
