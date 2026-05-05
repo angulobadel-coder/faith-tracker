@@ -215,6 +215,10 @@ const Auth = () => {
                   <Label className="text-secondary-soft" htmlFor="admin-confirm">Confirmar contraseña</Label>
                   <Input className="glass-input" id="admin-confirm" type="password" value={adminConfirmPassword} onChange={(e) => setAdminConfirmPassword(e.target.value)} required minLength={6} />
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-secondary-soft" htmlFor="admin-invite">Código de invitación</Label>
+                  <Input className="glass-input" id="admin-invite" type="password" value={adminInviteCode} onChange={(e) => setAdminInviteCode(e.target.value)} required placeholder="Provisto por el administrador" />
+                </div>
                 <Button type="submit" className="w-full btn-gradient border-0" disabled={loading}>
                   {loading ? "Registrando..." : "Crear Cuenta de Pastor"}
                 </Button>
