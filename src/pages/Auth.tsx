@@ -174,13 +174,13 @@ const Auth = () => {
               <form onSubmit={handleLogin} className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor="login-email">Correo electrónico</Label>
-                  <Input id="login-email" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required />
+                  <Input className="glass-input" id="login-email" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="login-password">Contraseña</Label>
-                  <Input id="login-password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
+                  <Input className="glass-input" id="login-password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full btn-gradient border-0" disabled={loading}>
                   {loading ? "Ingresando..." : "Ingresar"}
                 </Button>
               </form>
@@ -192,21 +192,21 @@ const Auth = () => {
                 <p className="text-sm text-muted-foreground">Registro para pastores y administradores del sistema.</p>
                 <div className="space-y-2">
                   <Label htmlFor="admin-name">Nombre completo</Label>
-                  <Input id="admin-name" value={adminName} onChange={(e) => setAdminName(e.target.value)} required />
+                  <Input className="glass-input" id="admin-name" value={adminName} onChange={(e) => setAdminName(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="admin-email">Correo electrónico</Label>
-                  <Input id="admin-email" type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required />
+                  <Input className="glass-input" id="admin-email" type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="admin-password">Contraseña</Label>
-                  <Input id="admin-password" type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} />
+                  <Input className="glass-input" id="admin-password" type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="admin-confirm">Confirmar contraseña</Label>
-                  <Input id="admin-confirm" type="password" value={adminConfirmPassword} onChange={(e) => setAdminConfirmPassword(e.target.value)} required minLength={6} />
+                  <Input className="glass-input" id="admin-confirm" type="password" value={adminConfirmPassword} onChange={(e) => setAdminConfirmPassword(e.target.value)} required minLength={6} />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full btn-gradient border-0" disabled={loading}>
                   {loading ? "Registrando..." : "Crear Cuenta de Pastor"}
                 </Button>
               </form>
@@ -218,33 +218,33 @@ const Auth = () => {
                 <p className="text-sm text-muted-foreground">Registro para miembros activos de la iglesia.</p>
                 <div className="space-y-2">
                   <Label htmlFor="member-name">Nombre completo</Label>
-                  <Input id="member-name" value={memberName} onChange={(e) => setMemberName(e.target.value)} required />
+                  <Input className="glass-input" id="member-name" value={memberName} onChange={(e) => setMemberName(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="member-email">Correo electrónico</Label>
-                  <Input id="member-email" type="email" value={memberEmail} onChange={(e) => setMemberEmail(e.target.value)} required />
+                  <Input className="glass-input" id="member-email" type="email" value={memberEmail} onChange={(e) => setMemberEmail(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="member-phone">Teléfono</Label>
-                  <Input id="member-phone" type="tel" value={memberPhone} onChange={(e) => setMemberPhone(e.target.value)} />
+                  <Input className="glass-input" id="member-phone" type="tel" value={memberPhone} onChange={(e) => setMemberPhone(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="member-birth">Fecha de nacimiento</Label>
-                  <Input id="member-birth" type="date" value={memberBirthDate} onChange={(e) => setMemberBirthDate(e.target.value)} />
+                  <Input className="glass-input" id="member-birth" type="date" value={memberBirthDate} onChange={(e) => setMemberBirthDate(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="member-reason">Motivo de membresía</Label>
-                  <Textarea id="member-reason" placeholder="¿Por qué deseas ser parte de nuestra comunidad?" value={memberReason} onChange={(e) => setMemberReason(e.target.value)} rows={3} />
+                  <Textarea className="glass-input" id="member-reason" placeholder="¿Por qué deseas ser parte de nuestra comunidad?" value={memberReason} onChange={(e) => setMemberReason(e.target.value)} rows={3} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="member-password">Contraseña</Label>
-                  <Input id="member-password" type="password" value={memberPassword} onChange={(e) => setMemberPassword(e.target.value)} required minLength={6} />
+                  <Input className="glass-input" id="member-password" type="password" value={memberPassword} onChange={(e) => setMemberPassword(e.target.value)} required minLength={6} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="member-confirm">Confirmar contraseña</Label>
-                  <Input id="member-confirm" type="password" value={memberConfirmPassword} onChange={(e) => setMemberConfirmPassword(e.target.value)} required minLength={6} />
+                  <Input className="glass-input" id="member-confirm" type="password" value={memberConfirmPassword} onChange={(e) => setMemberConfirmPassword(e.target.value)} required minLength={6} />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full btn-gradient border-0" disabled={loading}>
                   {loading ? "Registrando..." : "Registrarme como Miembro"}
                 </Button>
               </form>
