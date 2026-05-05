@@ -250,8 +250,8 @@ const Auth = () => {
               </form>
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
