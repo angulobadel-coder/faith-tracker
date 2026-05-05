@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Church, ShieldCheck, Users } from "lucide-react";
+import { ShieldCheck, Users } from "lucide-react";
+import logoCfa from "@/assets/logo-cfa.png";
 
 const Auth = () => {
   const navigate = useNavigate();
