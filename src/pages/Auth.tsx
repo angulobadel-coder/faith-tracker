@@ -212,6 +212,11 @@ const Auth = () => {
               <Input className="glass-input h-12" id="login-password" type="password" placeholder="••••••••"
                 value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
             </div>
+            <div className="text-right -mt-1">
+              <button type="button" onClick={() => setView("forgot")} className="text-xs text-secondary-soft hover:text-white underline">
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
             <Button type="submit" className="w-full btn-gradient border-0 h-12 text-base font-semibold" disabled={loading}>
               <LogIn className="h-5 w-5" /> {loading ? "Ingresando..." : "Ingresar"}
             </Button>
