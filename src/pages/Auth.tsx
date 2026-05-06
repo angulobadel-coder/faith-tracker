@@ -238,6 +238,36 @@ const Auth = () => {
         </div>
       )}
 
+      {/* FORGOT PASSWORD */}
+      {view === "forgot" && (
+        <div className="glass relative z-10 w-full max-w-md animate-fade-in p-8">
+          <BackButton />
+          <Logo size="h-24" />
+          <div className="text-center mt-4 mb-6">
+            <h1 className="text-2xl font-bold">Recuperar acceso</h1>
+            <p className="text-secondary-soft text-sm mt-1">
+              Ingresa tu correo y te enviaremos un enlace seguro para crear una nueva contraseña.
+            </p>
+          </div>
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-secondary-soft" htmlFor="forgot-email">Correo electrónico</Label>
+              <Input className="glass-input h-12" id="forgot-email" type="email" placeholder="correo@ejemplo.com"
+                value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required />
+            </div>
+            <Button type="submit" className="w-full btn-gradient border-0 h-12 text-base font-semibold" disabled={loading}>
+              <Mail className="h-5 w-5" /> {loading ? "Enviando..." : "Enviar enlace"}
+            </Button>
+          </form>
+          <p className="mt-5 text-center text-xs text-tertiary-soft">
+            ¿Recordaste tu contraseña?{" "}
+            <button onClick={() => setView("login")} className="underline hover:text-white">
+              Volver al inicio de sesión
+            </button>
+          </p>
+        </div>
+      )}
+
       {/* ADMIN SIGNUP */}
       {view === "admin" && (
         <div className="glass relative z-10 w-full max-w-md animate-fade-in p-8">
