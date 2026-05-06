@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import RegisterAttendance from "./pages/RegisterAttendance";
 import Members from "./pages/Members";
@@ -49,6 +50,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<AuthRoute />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/mi-panel" element={<MemberRoute />} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/registrar" element={<ProtectedRoute><RegisterAttendance /></ProtectedRoute>} />
