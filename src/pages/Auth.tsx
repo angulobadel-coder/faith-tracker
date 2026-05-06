@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ShieldCheck, Users, LogIn, ArrowLeft } from "lucide-react";
+import { ShieldCheck, Users, LogIn, ArrowLeft, Mail } from "lucide-react";
 import logoCfa from "@/assets/logo-cfa.png";
 
-type View = "landing" | "login" | "admin" | "member";
+type View = "landing" | "login" | "admin" | "member" | "forgot";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -35,6 +35,23 @@ const Auth = () => {
   const [memberReason, setMemberReason] = useState("");
   const [memberPassword, setMemberPassword] = useState("");
   const [memberConfirmPassword, setMemberConfirmPassword] = useState("");
+
+  // Forgot password state
+  const [forgotEmail, setForgotEmail] = useState("");
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return toast.error("Ingresa tu correo.");
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Te enviamos un enlace de recuperación a tu correo.");
+    setForgotEmail("");
+    setView("login");
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
