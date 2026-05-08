@@ -151,14 +151,20 @@ const Auth = () => {
       {view === "landing" && (
         <div className="glass relative z-10 w-full max-w-md animate-fade-in p-8 text-center">
           <Logo size="h-36" />
-          <h1 className="mt-6 text-4xl font-bold tracking-tight">
-            Sistema{" "}
+
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-secondary-soft">
+            <span className="h-1.5 w-1.5 rounded-full bg-gradient-primary" />
+            Sistema interno de la iglesia
+          </div>
+
+          <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
+            Bienvenido al{" "}
             <span className="bg-gradient-primary bg-clip-text text-transparent">
-              Administrativo
+              Panel CFA
             </span>
           </h1>
           <p className="mt-3 text-secondary-soft text-sm leading-relaxed">
-            Plataforma interna para el control de miembros, asistencia y comunicación de nuestra iglesia.
+            Gestiona miembros, asistencia y comunicación de la iglesia desde un solo lugar.
           </p>
 
           <div className="mt-7 space-y-3">
@@ -168,20 +174,36 @@ const Auth = () => {
             >
               <LogIn className="h-5 w-5" /> Iniciar Sesión
             </Button>
+
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-white/10" />
+              </div>
+              <span className="relative bg-transparent px-3 text-[11px] uppercase tracking-wider text-tertiary-soft">
+                ¿Aún no tienes cuenta? Regístrate
+              </span>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <Button
                 variant="outline"
-                onClick={() => setView("admin")}
-                className="h-11 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white text-white"
+                onClick={() => setView("member")}
+                className="h-11 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white text-white flex-col gap-0.5 py-2"
               >
-                <ShieldCheck className="h-4 w-4" /> Pastor
+                <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Users className="h-4 w-4" /> Soy Miembro
+                </span>
+                <span className="text-[10px] font-normal text-tertiary-soft">Registro abierto</span>
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setView("member")}
-                className="h-11 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white text-white"
+                onClick={() => setView("admin")}
+                className="h-11 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white text-white flex-col gap-0.5 py-2"
               >
-                <Users className="h-4 w-4" /> Miembro
+                <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  <ShieldCheck className="h-4 w-4" /> Soy Pastor
+                </span>
+                <span className="text-[10px] font-normal text-tertiary-soft">Requiere invitación</span>
               </Button>
             </div>
           </div>
