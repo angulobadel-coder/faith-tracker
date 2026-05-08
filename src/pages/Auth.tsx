@@ -157,11 +157,8 @@ const Auth = () => {
             Sistema interno de la iglesia
           </div>
 
-          <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
-            Bienvenido al{" "}
-            <span className="bg-gradient-primary bg-clip-text text-transparent">
-              Panel CFA
-            </span>
+          <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight leading-tight text-white">
+            Bienvenido al <span className="text-primary">Panel CFA</span>
           </h1>
           <p className="mt-3 text-secondary-soft text-sm leading-relaxed">
             Gestiona miembros, asistencia y comunicación de la iglesia desde un solo lugar.
