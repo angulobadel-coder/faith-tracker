@@ -19,11 +19,44 @@ const Dashboard = () => {
   const [weeklyData, setWeeklyData] = useState<any[]>([]);
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
 
-  useEffect(() => {
+  const refreshAll = () => {
     fetchStats();
     fetchRecentAttendance();
     fetchWeeklyChart();
     fetchMonthlyChart();
+  };
+
+  useEffect(() => {
+    refreshAll();
+
+    // Suscripción en tiempo real: cuando el ESP32 registra una huella,
+    // se actualiza el dashboard al instante y se muestra una bienvenida.
+    const channel = supabase
+      .channel("attendance-live")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "attendance" },
+        async (payload) => {
+          const memberId = (payload.new as any)?.member_id;
+          if (memberId) {
+            const { data } = await supabase
+              .from("members")
+              .select("full_name")
+              .eq("id", memberId)
+              .maybeSingle();
+            toast.success(`✋ ¡Bienvenido(a) ${data?.full_name ?? "miembro"}!`, {
+              description: "Asistencia registrada por huella",
+              icon: <Fingerprint className="h-4 w-4" />,
+            });
+          }
+          refreshAll();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchStats = async () => {
