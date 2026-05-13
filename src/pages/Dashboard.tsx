@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ClipboardCheck, AlertTriangle, TrendingUp } from "lucide-react";
+import { Users, ClipboardCheck, AlertTriangle, TrendingUp, Fingerprint } from "lucide-react";
+import { toast } from "sonner";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, eachWeekOfInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
